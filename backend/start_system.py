@@ -81,6 +81,29 @@ def open_dashboard(port=8000):
         print("✗ Dashboard file not found")
         return False
 
+def start_frontend():
+    """Start the React frontend"""
+    client_path = os.path.join(os.path.dirname(__file__), "..", "client")
+
+    if not os.path.exists(client_path):
+        print(f"✗ Client not found at {client_path}")
+        return None
+
+    try:
+        cmd = ["npm", "run", "dev"]
+        process = subprocess.Popen(cmd, cwd=client_path)
+        print("✓ Frontend started")
+        # Wait a bit for it to start
+        time.sleep(3)
+        # Open browser to localhost:5173
+        frontend_url = "http://localhost:5173"
+        print(f"📊 Opening frontend: {frontend_url}")
+        webbrowser.open(frontend_url)
+        return process
+    except Exception as e:
+        print(f"✗ Failed to start frontend: {e}")
+        return None
+
 def main():
     parser = argparse.ArgumentParser(description='Distributed VAPT System Launcher')
     parser.add_argument('--orchestrator-only', action='store_true',
@@ -128,11 +151,13 @@ def main():
         # Open dashboard
         if not args.no_dashboard and not args.agent_only:
             time.sleep(1)  # Give services time to start
-            open_dashboard(args.port)
+            frontend_proc = start_frontend()
+            if frontend_proc:
+                processes.append(("frontend", frontend_proc))
 
         print("\n" + "=" * 50)
         print("🎉 System started successfully!")
-        print(f"📊 Dashboard: Open dashboard.html in your browser")
+        print(f"📊 Frontend: http://localhost:5173")
         print(f"🚀 Orchestrator API: http://localhost:{args.port}")
         print("📖 Documentation: README-DISTRIBUTED.md")
         print("\nPress Ctrl+C to stop all services")
