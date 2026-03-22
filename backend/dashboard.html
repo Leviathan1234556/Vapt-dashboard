@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distributed VAPT Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+        }
+
+        .card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 5px;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .metric-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .status-online { background-color: #4CAF50; }
+        .status-offline { background-color: #f44336; }
+        .status-busy { background-color: #ff9800; }
+
+        .agent-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .agent-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .agent-info {
+            flex: 1;
+        }
+
+        .agent-name {
+            font-weight: bold;
+        }
+
+        .agent-details {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .vulnerabilities {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .vulnerability-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 5px;
+        }
+
+        .vulnerability-info {
+            flex: 1;
+        }
+
+        .vulnerability-name {
+            font-weight: bold;
+        }
+
+        .vulnerability-target {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .severity-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: white;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .severity-critical { background-color: #f44336; }
+        .severity-high { background-color: #ff9800; }
+        .severity-medium { background-color: #ff5722; }
+        .severity-low { background-color: #4CAF50; }
+        .severity-info { background-color: #2196F3; }
+
+        .controls {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+
+        .form-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 5px;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: #5a6fd8;
+        }
+
+        .btn-danger {
+            background: #f44336;
+        }
+
+        .btn-danger:hover {
+            background: #d32f2f;
+        }
+
+        .jobs-list {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .job-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 10px;
+        }
+
+        .job-info {
+            flex: 1;
+        }
+
+        .job-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .job-details {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background-color: #eee;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: #4CAF50;
+            transition: width 0.3s ease;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .refresh-btn:hover {
+            background: #5a6fd8;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+
+            .charts {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Distributed VAPT System</h1>
+            <p>Real-time monitoring dashboard for distributed vulnerability scanning</p>
+        </div>
+
+        <div class="controls">
+            <h3>Create New Scan Job</h3>
+            <form id="jobForm">
+                <div class="form-group">
+                    <label for="jobName">Job Name:</label>
+                    <input type="text" id="jobName" placeholder="e.g., Network Scan 2024" required>
+                </div>
+                <div class="form-group">
+                    <label for="targets">Targets (one per line):</label>
+                    <textarea id="targets" rows="4" placeholder="192.168.1.1&#10;192.168.1.2&#10;example.com" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Scan Types:</label>
+                    <div>
+                        <input type="checkbox" id="portScan" checked> Port Scanning<br>
+                        <input type="checkbox" id="serviceDetect"> Service Detection<br>
+                        <input type="checkbox" id="vulnScan" checked> Vulnerability Scanning<br>
+                    </div>
+                </div>
+                <button type="submit" class="btn">Create Job</button>
+            </form>
+        </div>
+
+        <div class="dashboard">
+            <div class="card">
+                <h3>📊 System Status</h3>
+                <div id="systemStatus">
+                    <div class="metric">
+                        <span>Total Agents:</span>
+                        <span class="metric-value" id="totalAgents">0</span>
+                    </div>
+                    <div class="metric">
+                        <span>Active Agents:</span>
+                        <span class="metric-value" id="activeAgents">0</span>
+                    </div>
+                    <div class="metric">
+                        <span>Running Tasks:</span>
+                        <span class="metric-value" id="runningTasks">0</span>
+                    </div>
+                    <div class="metric">
+                        <span>Completed Tasks:</span>
+                        <span class="metric-value" id="completedTasks">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🤖 Active Agents</h3>
+                <div class="agent-list" id="agentList">
+                    <p>Loading agents...</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📋 Recent Jobs</h3>
+                <div id="jobsList">
+                    <p>Loading jobs...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="charts">
+            <div class="chart-container">
+                <h3>Task Distribution</h3>
+                <canvas id="taskChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Agent Load</h3>
+                <canvas id="agentChart"></canvas>
+            </div>
+        </div>
+
+        <div class="vulnerabilities">
+            <h3>🎯 Top Vulnerabilities</h3>
+            <div id="vulnerabilitiesList">
+                <p>Loading vulnerabilities...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let taskChart, agentChart;
+        const API_BASE = 'http://localhost:8000';
+
+        async function fetchData(endpoint) {
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`);
+                return await response.json();
+            } catch (error) {
+                console.error(`Error fetching ${endpoint}:`, error);
+                return null;
+            }
+        }
+
+        async function refreshData() {
+            const [status, agents, jobs, vulnerabilities] = await Promise.all([
+                fetchData('/status'),
+                fetchData('/agents'),
+                fetchData('/jobs'),
+                fetchData('/vulnerabilities?limit=10')
+            ]);
+
+            updateSystemStatus(status);
+            updateAgentList(agents);
+            updateJobsList(jobs);
+            updateVulnerabilities(vulnerabilities);
+            updateCharts(status);
+        }
+
+        function updateSystemStatus(status) {
+            if (!status) return;
+
+            document.getElementById('totalAgents').textContent = status.agents.total;
+            document.getElementById('activeAgents').textContent = status.agents.active;
+            document.getElementById('runningTasks').textContent = status.tasks.running;
+            document.getElementById('completedTasks').textContent = status.tasks.completed;
+        }
+
+        function updateAgentList(agents) {
+            const agentList = document.getElementById('agentList');
+            if (!agents || !agents.agents) {
+                agentList.innerHTML = '<p>No agents connected</p>';
+                return;
+            }
+
+            agentList.innerHTML = agents.agents.map(agent => `
+                <div class="agent-item">
+                    <div class="agent-info">
+                        <div class="agent-name">${agent.hostname}</div>
+                        <div class="agent-details">
+                            <span class="${getStatusClass(agent.status)}"></span>
+                            ${agent.status} | Load: ${agent.system_load.toFixed(1)}%
+                        </div>
+                    </div>
+                    <div>${agent.ip_addresses.join(', ')}</div>
+                </div>
+            `).join('');
+        }
+
+        function updateJobsList(jobs) {
+            const jobsList = document.getElementById('jobsList');
+            if (!jobs || !jobs.jobs) {
+                jobsList.innerHTML = '<p>No jobs found</p>';
+                return;
+            }
+
+            jobsList.innerHTML = jobs.jobs.slice(0, 5).map(job => `
+                <div class="job-item">
+                    <div class="job-info">
+                        <div class="job-name">${job.name}</div>
+                        <div class="job-details">
+                            ${job.targets_count} targets | ${job.tasks_count} tasks | ${job.status}
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${job.progress}%"></div>
+                        </div>
+                    </div>
+                    <div>${job.progress.toFixed(1)}%</div>
+                </div>
+            `).join('');
+        }
+
+        function updateVulnerabilities(vulnerabilities) {
+            const vulnList = document.getElementById('vulnerabilitiesList');
+            if (!vulnerabilities || !vulnerabilities.vulnerabilities) {
+                vulnList.innerHTML = '<p>No vulnerabilities found</p>';
+                return;
+            }
+
+            vulnList.innerHTML = vulnerabilities.vulnerabilities.map(vuln => `
+                <div class="vulnerability-item">
+                    <div class="vulnerability-info">
+                        <div class="vulnerability-name">${vuln.name || vuln.template_id || 'Unknown'}</div>
+                        <div class="vulnerability-target">${vuln.target}</div>
+                    </div>
+                    <span class="severity-badge severity-${(vuln.severity || 'info').toLowerCase()}">
+                        ${vuln.severity || 'info'}
+                    </span>
+                </div>
+            `).join('');
+        }
+
+        function updateCharts(status) {
+            if (!status) return;
+
+            // Task distribution chart
+            const taskCtx = document.getElementById('taskChart').getContext('2d');
+            if (taskChart) taskChart.destroy();
+
+            taskChart = new Chart(taskCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Pending', 'Running', 'Completed', 'Failed'],
+                    datasets: [{
+                        data: [
+                            status.tasks.pending,
+                            status.tasks.running,
+                            status.tasks.completed,
+                            status.tasks.failed
+                        ],
+                        backgroundColor: ['#ff9800', '#2196F3', '#4CAF50', '#f44336']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+
+            // Agent load chart
+            const agentCtx = document.getElementById('agentChart').getContext('2d');
+            if (agentChart) agentChart.destroy();
+
+            const agentLoads = status.agents.details.map(agent => agent.system_load);
+            const agentNames = status.agents.details.map(agent => agent.hostname);
+
+            agentChart = new Chart(agentCtx, {
+                type: 'bar',
+                data: {
+                    labels: agentNames,
+                    datasets: [{
+                        label: 'System Load (%)',
+                        data: agentLoads,
+                        backgroundColor: '#667eea'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        }
+
+        function getStatusClass(status) {
+            switch (status.toLowerCase()) {
+                case 'available': return 'status-indicator status-online';
+                case 'busy': return 'status-indicator status-busy';
+                default: return 'status-indicator status-offline';
+            }
+        }
+
+        // Job creation form handler
+        document.getElementById('jobForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const jobName = document.getElementById('jobName').value;
+            const targets = document.getElementById('targets').value.split('\n').filter(t => t.trim());
+            const scanTypes = [];
+
+            if (document.getElementById('portScan').checked) scanTypes.push('port_scan');
+            if (document.getElementById('serviceDetect').checked) scanTypes.push('service_detection');
+            if (document.getElementById('vulnScan').checked) scanTypes.push('vulnerability_scan');
+
+            try {
+                const response = await fetch(`${API_BASE}/jobs/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        name: jobName,
+                        targets: JSON.stringify(targets),
+                        scan_types: JSON.stringify(scanTypes)
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Job created successfully!');
+                    document.getElementById('jobForm').reset();
+                    refreshData();
+                } else {
+                    alert('Failed to create job');
+                }
+            } catch (error) {
+                console.error('Error creating job:', error);
+                alert('Error creating job');
+            }
+        });
+
+        // Auto-refresh every 30 seconds
+        setInterval(refreshData, 30000);
+
+        // Initial load
+        refreshData();
+    </script>
+</body>
+</html>
